@@ -38,6 +38,19 @@ const KIND_LABELS = {
   note_voice: '补充备注',
 } as const;
 
+/** 追问建议里的话术来源标记：家族模板 / 我的覆盖 / 内置兜底 */
+const SOURCE_LABELS = {
+  family: '家族话术',
+  override: '我的问法',
+  builtin: '内置问法',
+} as const;
+
+const SOURCE_COLORS = {
+  family: 'default',
+  override: 'blue',
+  builtin: 'default',
+} as const;
+
 /**
  * 录音工作台 —— 闭环的入口。
  *
@@ -424,9 +437,16 @@ export function RecorderPage() {
                           }
                           description={
                             <span className="froa-hint">
-                              建议：{match.suggestion}
-                              <br />
-                              可以这样问：{match.question}
+                              {match.suggestion ? (
+                                <>
+                                  建议：{match.suggestion}
+                                  <br />
+                                </>
+                              ) : null}
+                              可以这样问：{match.question}{' '}
+                              <Tag style={{ marginLeft: 4 }} color={SOURCE_COLORS[match.source]}>
+                                {SOURCE_LABELS[match.source]}
+                              </Tag>
                             </span>
                           }
                         />

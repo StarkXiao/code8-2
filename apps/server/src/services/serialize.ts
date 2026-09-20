@@ -3,11 +3,14 @@ import type {
   AudioAttachmentDto,
   AudioClipDto,
   CommentDto,
+  FollowupTemplateDto,
+  FollowupTemplateItemDto,
   IngredientDto,
   KitchenReferenceDto,
   NotificationDto,
   RecipeDto,
   RecipeVersionDto,
+  ResolvedFollowupItem,
   ResolvedSpec,
   StepDto,
   UserDto,
@@ -406,6 +409,82 @@ export function toReferenceDto(reference: {
     note: reference.note,
     createdBy: reference.createdBy,
     createdAt: reference.createdAt.toISOString(),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* 追问话术模板                                                         */
+/* ------------------------------------------------------------------ */
+
+type FollowupItemRow = {
+  id: string;
+  templateId: string;
+  ruleKey: string | null;
+  category: string;
+  triggerText: string | null;
+  questionTemplate: string;
+  sortOrder: number;
+  enabled: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type FollowupOverrideRow = {
+  customQuestion: string | null;
+  disabledAt: Date | null;
+  note: string | null;
+};
+
+export function toFollowupTemplateItemDto(
+  item: FollowupItemRow,
+  myOverride: FollowupOverrideRow | null,
+  resolved: ResolvedFollowupItem,
+): FollowupTemplateItemDto {
+  return {
+    id: item.id,
+    templateId: item.templateId,
+    ruleKey: item.ruleKey,
+    category: item.category as VagueCategory,
+    triggerText: item.triggerText,
+    questionTemplate: item.questionTemplate,
+    sortOrder: item.sortOrder,
+    enabled: item.enabled,
+    createdBy: item.createdBy,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
+    myOverride: myOverride
+      ? {
+          customQuestion: myOverride.customQuestion,
+          disabledAt: iso(myOverride.disabledAt),
+          note: myOverride.note,
+        }
+      : null,
+    effective: {
+      questionTemplate: resolved.questionTemplate,
+      source: resolved.source,
+      active: resolved.active,
+    },
+  };
+}
+
+export function toFollowupTemplateDto(
+  template: {
+    id: string;
+    workspaceId: string;
+    name: string;
+    createdBy: string;
+    createdAt: Date;
+  },
+  items: FollowupTemplateItemDto[],
+): FollowupTemplateDto {
+  return {
+    id: template.id,
+    workspaceId: template.workspaceId,
+    name: template.name,
+    createdBy: template.createdBy,
+    createdAt: template.createdAt.toISOString(),
+    items,
   };
 }
 

@@ -43,6 +43,7 @@ model User {
   notifications      Notification[]
   activities         ActivityLog[]
   referencesCreated  KitchenReference[]
+  followupOverrides  FollowupTemplateOverride[]
 }
 
 model Workspace {
@@ -59,6 +60,8 @@ model Workspace {
   audio      AudioAttachment[]
   activities ActivityLog[]
   references KitchenReference[]
+  followupTemplates FollowupTemplate[]
+  followupOverrides FollowupTemplateOverride[]
 }
 
 model WorkspaceMember {
@@ -91,6 +94,78 @@ model KitchenReference {
   creator   User      @relation(fields: [createdBy], references: [id])
 
   @@unique([workspaceId, label])
+}
+
+// ------------------------------------------------------------------
+// 追问话术模板（家族模板 → 个人继承/覆盖/停用）
+// ------------------------------------------------------------------
+
+/// 家族话术模板：一个空间至少有一个"默认模板"。
+/// 继承语义靠"引用 + 稀疏覆盖"实现 —— 成员不加任何行就自动套用家族文案，
+/// 所以新人加入时这里什么都不用写。
+model FollowupTemplate {
+  id          String   @id
+  workspaceId String
+  name        String
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items     FollowupTemplateItem[]
+
+  @@unique([workspaceId, name])
+}
+
+/// 模板里的一条话术。
+/// ruleKey 非空：给某条内置模糊规则（packages/shared/src/rules.ts）提供问法；
+/// ruleKey 为 null：自定义条目，转写文本里出现 triggerText 时触发。
+/// enabled 是家族级开关 —— 整理者可以让一条话术对全家停用。
+model FollowupTemplateItem {
+  id               String   @id
+  templateId       String
+  ruleKey          String?
+  category         String
+  /// 自定义条目的触发词（ruleKey 为空时必填）
+  triggerText      String?
+  /// 支持 {原话} 占位符，渲染时用原句替换
+  questionTemplate String
+  sortOrder        Int      @default(0)
+  enabled          Boolean  @default(true)
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  template  FollowupTemplate           @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  overrides FollowupTemplateOverride[]
+
+  // 一条内置规则在一个模板里最多对应一条话术；ruleKey 为 NULL 的自定义条目不受限
+  @@unique([templateId, ruleKey])
+  @@index([templateId, sortOrder])
+}
+
+/// 个人对某条话术的偏离：稀疏存储，只记"和家族不一样"的部分。
+/// customQuestion 有值 = 个人改写；disabledAt 有值 = 临时停用（清空即恢复）。
+/// 两个字段都为空时该行会被删除，回到完全继承状态。
+model FollowupTemplateOverride {
+  id             String    @id
+  itemId         String
+  userId         String
+  /// 冗余自 item.template.workspaceId，用于按空间校验与清理，不信任客户端传值
+  workspaceId    String
+  customQuestion String?
+  disabledAt     DateTime?
+  /// 停用原因（可选），方便日后想起为什么停了这条
+  note           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  item      FollowupTemplateItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, userId])
+  @@index([workspaceId, userId])
 }
 
 // ------------------------------------------------------------------

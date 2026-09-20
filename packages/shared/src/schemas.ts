@@ -67,6 +67,56 @@ export const kitchenReferenceSchema = z.object({
 });
 
 /* ------------------------------------------------------------------ */
+/* 追问话术模板                                                         */
+/* ------------------------------------------------------------------ */
+
+const questionTemplateSchema = z
+  .string()
+  .trim()
+  .min(2, '话术至少两个字')
+  .max(500)
+  .refine((value) => !value.includes('{原话}') || value.length > '{原话}'.length, {
+    message: '话术不能只包含占位符',
+  });
+
+export const createFollowupTemplateSchema = z.object({
+  name: z.string().trim().min(1, '请填写模板名称').max(64),
+});
+
+/** 自定义条目（ruleKey 为空）必须给触发词，否则永远不会被建议 */
+export const createFollowupTemplateItemSchema = z
+  .object({
+    category: z.enum(VAGUE_CATEGORIES),
+    questionTemplate: questionTemplateSchema,
+    ruleKey: z.string().trim().min(1).max(64).nullish(),
+    triggerText: z.string().trim().min(1).max(64).nullish(),
+    sortOrder: z.number().int().min(0).max(9999).optional(),
+  })
+  .refine((value) => value.ruleKey || (value.triggerText && value.triggerText.length > 0), {
+    message: '自定义话术需要填写触发词（转写文本里出现它时触发这条话术）',
+    path: ['triggerText'],
+  });
+
+export const updateFollowupTemplateItemSchema = z.object({
+  category: z.enum(VAGUE_CATEGORIES).optional(),
+  questionTemplate: questionTemplateSchema.optional(),
+  triggerText: z.string().trim().min(1).max(64).nullish(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+  /** 家族级启停：整理者让一条话术对全家停用/恢复 */
+  enabled: z.boolean().optional(),
+});
+
+/**
+ * 个人覆盖：三个字段都是"我"对家族模板的偏离。
+ * customQuestion 为 null 且 disabled 为 false 时等价于清除覆盖（完全继承）。
+ */
+export const upsertFollowupOverrideSchema = z.object({
+  customQuestion: z.string().trim().min(2).max(500).nullish(),
+  disabled: z.boolean().optional(),
+  note: z.string().trim().max(200).nullish(),
+});
+
+/* ------------------------------------------------------------------ */
 /* 食谱与版本                                                          */
 /* ------------------------------------------------------------------ */
 

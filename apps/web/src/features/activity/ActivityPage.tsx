@@ -34,6 +34,12 @@ const ACTION_LABEL: Record<string, string> = {
   'workspace.member.role.update': '调整了成员角色',
   'workspace.member.remove': '移除了成员',
   'comment.create': '发表了评论',
+  'followup_template.create': '创建了话术模板',
+  'followup_template_item.create': '新增了家族话术',
+  'followup_template_item.update': '修改了家族话术',
+  'followup_template_item.delete': '删除了家族话术',
+  'followup_override.set': '设置了自己的话术覆盖',
+  'followup_override.clear': '恢复了继承家族话术',
 };
 
 // 操作日志只追加不修改：改规格、删音频、发布版本都能追溯到人。

@@ -4,12 +4,10 @@ import {
   answerVagueItemSchema,
   confirmVagueItemSchema,
   createVagueItemSchema,
-  fallbackQuestion,
   markUnresolvableSchema,
-  matchVaguePhrases,
   reopenVagueItemSchema,
-  renderQuestionTemplate,
   resolveVagueItemSchema,
+  suggestFollowupQuestions,
   updateVagueItemSchema,
   validateResolvedSpec,
   vagueItemQuerySchema,
@@ -35,6 +33,7 @@ import {
   assertVersionInRecipe,
 } from '../services/access';
 import { logActivity } from '../services/activity';
+import { getResolvedItems } from '../services/followupTemplate';
 import { notify } from '../services/notify';
 import { emitToWorkspace } from '../realtime/hub';
 import { toActivityDto, toAudioDto, toClipDto, toVagueItemDto } from '../services/serialize';
@@ -73,23 +72,24 @@ const suggestQuerySchema = z.object({ text: z.string().min(1).max(4000) });
 /**
  * 对一段转写文本做模糊描述识别。
  * 规则只给建议，绝不自动落库 —— 是否生成待澄清条目由人决定。
+ *
+ * "怎么问"来自追问话术模板：家族模板 + 我的覆盖解析后的生效版本。
+ * 被（家族或我个人）停用的话术不会出现在建议里。
  */
 vagueItemRouter.get(
   '/recipes/:recipeId/vague-items/suggest',
   validateQuery(suggestQuerySchema),
   asyncHandler(async (req, res) => {
     const { recipeId } = req.params;
-    await assertRecipeRole(req.auth!.userId, recipeId!, 'viewer');
+    const access = await assertRecipeRole(req.auth!.userId, recipeId!, 'viewer');
     const { text } = queryOf(req, suggestQuerySchema);
 
-    const matches = matchVaguePhrases(text).map((match) => ({
-      ...match,
-      question: renderQuestionTemplate(match.question, match.matchedPattern),
-    }));
+    const resolved = await getResolvedItems(access.workspaceId, req.auth!.userId);
+    const { matches, fallbackQuestionTemplate } = suggestFollowupQuestions(text, resolved);
 
     send(res, {
       matches,
-      fallbackQuestionTemplate: fallbackQuestion('{这句话}'),
+      fallbackQuestionTemplate,
       count: matches.length,
     });
   }),

@@ -11,6 +11,8 @@ import type {
   CreateStepInput,
   CreateVagueItemInput,
   CreateVerificationInput,
+  FollowupTemplateDto,
+  FollowupTemplateItemDto,
   IngredientDto,
   KitchenReferenceDto,
   NotificationDto,
@@ -216,7 +218,10 @@ export const vagueItemApi = {
         suggestion: string;
         question: string;
         defaultConfidence: 'estimated' | 'assumed';
+        source: 'family' | 'override' | 'builtin';
+        itemId: string | null;
       }[];
+      fallbackQuestionTemplate: string | null;
       count: number;
     }>(api.get(`/recipes/${recipeId}/vague-items/suggest`, { params: { text } })),
   create: (recipeId: string, input: CreateVagueItemInput) =>
@@ -239,6 +244,45 @@ export const vagueItemApi = {
   reopen: (itemId: string, reason: string) =>
     unwrap<VagueItemDto>(api.post(`/vague-items/${itemId}/reopen`, { reason })),
   history: (itemId: string) => unwrap<ActivityLogDto[]>(api.get(`/vague-items/${itemId}/history`)),
+};
+
+/* ---------------- 追问话术模板 ---------------- */
+
+export const followupTemplateApi = {
+  list: (workspaceId: string) =>
+    unwrap<FollowupTemplateDto[]>(api.get(`/workspaces/${workspaceId}/followup-templates`)),
+  createTemplate: (workspaceId: string, name: string) =>
+    unwrap<FollowupTemplateDto>(api.post(`/workspaces/${workspaceId}/followup-templates`, { name })),
+  addItem: (
+    workspaceId: string,
+    templateId: string,
+    input: { category: VagueCategory; questionTemplate: string; triggerText?: string | null; ruleKey?: string | null },
+  ) =>
+    unwrap<FollowupTemplateItemDto>(
+      api.post(`/workspaces/${workspaceId}/followup-templates/${templateId}/items`, input),
+    ),
+  updateItem: (
+    itemId: string,
+    input: {
+      category?: VagueCategory;
+      questionTemplate?: string;
+      triggerText?: string | null;
+      sortOrder?: number;
+      enabled?: boolean;
+    },
+  ) => unwrap<FollowupTemplateItemDto>(api.patch(`/followup-template-items/${itemId}`, input)),
+  removeItem: (itemId: string) =>
+    unwrap<{ removed: string }>(api.delete(`/followup-template-items/${itemId}`)),
+  /** 个人覆盖：换成我的问法 / 临时停用 / 恢复；不传或传 null 表示清除该项偏离 */
+  setOverride: (
+    itemId: string,
+    input: { customQuestion?: string | null; disabled?: boolean; note?: string | null },
+  ) =>
+    unwrap<{ override: { customQuestion: string | null; disabledAt: string | null; note: string | null } | null }>(
+      api.put(`/followup-template-items/${itemId}/override`, input),
+    ),
+  clearOverride: (itemId: string) =>
+    unwrap<{ override: null }>(api.delete(`/followup-template-items/${itemId}/override`)),
 };
 
 /* ---------------- 评论 / 验证 / 通知 ---------------- */

@@ -282,6 +282,51 @@ export interface KitchenReferenceDto {
   createdAt: string;
 }
 
+/* ------------------------------------------------------------------ */
+/* 追问话术模板                                                         */
+/* ------------------------------------------------------------------ */
+
+/** 我（当前登录用户）对某条话术的覆盖状态 */
+export interface FollowupOverrideDto {
+  customQuestion: string | null;
+  disabledAt: string | null;
+  note: string | null;
+}
+
+export interface FollowupTemplateItemDto {
+  id: string;
+  templateId: string;
+  /** 关联的内置规则 id；null 表示自定义条目 */
+  ruleKey: string | null;
+  category: VagueCategory;
+  triggerText: string | null;
+  /** 家族文案，支持 {原话} 占位符 */
+  questionTemplate: string;
+  sortOrder: number;
+  /** 家族级开关：false 时全员停用 */
+  enabled: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  /** 我的覆盖（没有覆盖行时为 null，表示完全继承家族文案） */
+  myOverride: FollowupOverrideDto | null;
+  /** 解析后的生效状态 */
+  effective: {
+    questionTemplate: string;
+    source: 'family' | 'override';
+    active: boolean;
+  };
+}
+
+export interface FollowupTemplateDto {
+  id: string;
+  workspaceId: string;
+  name: string;
+  createdBy: string;
+  createdAt: string;
+  items: FollowupTemplateItemDto[];
+}
+
 export interface RecipeVersionDto {
   id: string;
   recipeId: string;

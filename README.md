@@ -106,16 +106,16 @@ npm run dev
 
 ```
 origin/
-├─ packages/shared/          前后端共享的枚举、Zod 校验、规格校验器、模糊描述规则库
+├─ packages/shared/          前后端共享的枚举、Zod 校验、规格校验器、模糊描述规则库、话术模板继承解析
 ├─ apps/server/              后端：Express + Prisma + Socket.IO
 │  ├─ prisma/schema.prisma   数据模型（唯一真相）
 │  ├─ prisma/migrations/     迁移 SQL（由 migrate diff 从 schema 生成）
 │  ├─ scripts/migrate.mjs    迁移执行器（node:sqlite，无原生依赖）
-│  ├─ src/modules/           auth / workspace / recipe / version / audio / vagueItem / ...
-│  └─ tests/                 spec 单测 + closed-loop 集成测试
+│  └─ src/modules/           auth / workspace / recipe / version / audio / vagueItem / followupTemplate / ...
+│  └─ tests/                 spec 单测 + closed-loop 集成测试 + followup-template 继承测试
 ├─ apps/web/                 前端：React 18 + Vite + TanStack Query + antd
 │  ├─ src/components/        Waveform / GlobalPlayer / AudioRecorder / SpecEditor
-│  ├─ src/features/          录音工作台 / 追问台 / 草稿编辑器 / 版本差异 / 复做验证
+│  ├─ src/features/          录音工作台 / 追问台 / 话术模板 / 草稿编辑器 / 版本差异 / 复做验证
 │  └─ e2e/                   Playwright 闭环用例
 └─ data/                     运行时生成：app.db、audio/、backups/
 ```
@@ -141,6 +141,8 @@ origin/
 **参照物登记。** 先把"外婆家那只白瓷勺 = 一平勺 8g"量化一次存进空间，之后所有"半勺""一勺"都能换算成克。这是把模糊用量变成数值最有效的手段。
 
 **并发编辑不会互相覆盖。** 步骤、用量、待澄清条目、版本都带 `updatedAt`。前端提交时回传它读到的时间戳；如果这期间别人改过，服务端返回 `409 EDIT_CONFLICT` 并附上最新内容，而不是静默覆盖。不传该字段时退化为"最后写入者胜"，方便脚本与旧客户端接入。
+
+**追问话术是可继承的家族模板。** 每个空间自动播种一份"家族默认话术"（内置规则的问法 + 兜底话术），新人加入时不需要任何设置就自动套用 —— 继承靠"引用 + 稀疏覆盖"实现：个人覆盖表只存"我和家族不一样"的部分（自己的问法 / 临时停用），没有覆盖行就是完全继承。因此家族文案更新后，没覆盖过的人自动跟上；停用是"这条不再出现在我的建议里"，随时可以恢复。家族级启停（整理者以上）则对全员生效。规则引擎负责"哪句说不清"，话术模板负责"怎么问"，两者在 `suggestFollowupQuestions()`（`packages/shared/src/followupTemplates.ts`）汇合。
 
 **数据和鉴权都不靠前端自觉。** 音频列表不指定食谱时只返回"我参与的空间"的数据；追问对象、@提醒对象必须是本空间成员；步骤引用的音频片段、用量引用的待澄清条目必须属于同一张食谱；食谱不能被 PATCH 搬到别的空间。这些都是服务端强校验，前端越权也拿不到。
 
@@ -178,7 +180,7 @@ origin/
 **UI 层闭环**（`apps/web/e2e/closed-loop.spec.ts`）：在真实 Chrome 里从注册走到发布，包含在波形上拖拽框选片段，最后验证导出真的能下载。
 
 ```bash
-npm run test        # 后端 60 个测试
+npm run test        # 后端 74 个测试
 npm run test:e2e    # 浏览器端 4 条用例（默认用系统 Chrome）
 ```
 

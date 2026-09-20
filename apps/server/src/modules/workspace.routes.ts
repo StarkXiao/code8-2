@@ -14,6 +14,7 @@ import { requireAuth } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { assertWorkspaceRole, getMembership } from '../services/access';
 import { logActivity } from '../services/activity';
+import { ensureDefaultTemplate } from '../services/followupTemplate';
 import { toActivityDto, toMemberDto, toReferenceDto, toWorkspaceDto } from '../services/serialize';
 
 export const workspaceRouter: Router = Router();
@@ -49,6 +50,9 @@ workspaceRouter.post(
       });
       return ws;
     });
+
+    // 新空间自动带上默认追问话术模板，之后加入的成员都会继承它
+    await ensureDefaultTemplate(workspace.id, userId);
 
     created(res, toWorkspaceDto(workspace, 'owner'));
   }),

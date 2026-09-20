@@ -41,6 +41,7 @@ export function useRealtime(): void {
     });
     socket.on('audio:created', () => invalidate([['audio']]));
     socket.on('notification:new', () => invalidate([['notifications']]));
+    socket.on('followup_template:updated', () => invalidate([['followup-templates']]));
 
     return () => {
       socket.close();

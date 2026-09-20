@@ -264,5 +264,7 @@ function pageRoutes(data: Seeded): { path: string; expect: RegExp }[] {
       expect: /版本差异/,
     },
     { path: `/join/${data.inviteCode}`, expect: /全页面巡检厨房/ },
+    // 追加在末尾：上面的索引被"只读角色"用例按位置引用，插中间会让它点错页面
+    { path: `${base}/templates`, expect: /追问话术模板/ },
   ];
 }
