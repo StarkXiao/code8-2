@@ -23,12 +23,14 @@ import {
   VAGUE_CATEGORY_LABELS,
   VAGUE_STATUS_LABELS,
   formatSpecSummary,
+  renderQuestionText,
+  type EffectiveQuestionTemplate,
   type ResolvedSpec,
   type VagueCategory,
   type VagueItemDto,
   type VagueStatus,
 } from '@froa/shared';
-import { recipeApi, vagueItemApi, workspaceApi } from '../../api/endpoints';
+import { questionTemplateApi, recipeApi, vagueItemApi, workspaceApi } from '../../api/endpoints';
 import { errorMessage } from '../../api/client';
 import { SpecEditor } from '../../components/SpecEditor';
 import { Waveform } from '../../components/Waveform';
@@ -88,6 +90,14 @@ export function InboxPage() {
     queryKey: ['vague-summary', recipeId],
     queryFn: () => vagueItemApi.summary(recipeId!),
     enabled: Boolean(recipeId),
+  });
+
+  // 家族追问话术：按当前条目分类过滤，通用话术（category=null）始终返回。
+  // 数据在服务端已经合并过"家族 / 个人覆盖 / 个人停用"，前端只负责展示。
+  const templates = useQuery({
+    queryKey: ['question-templates-usable', workspaceId],
+    queryFn: () => questionTemplateApi.usable(workspaceId!),
+    enabled: Boolean(workspaceId),
   });
 
   const items = useQuery({
@@ -279,6 +289,7 @@ export function InboxPage() {
               item={current}
               canResolve={canResolve}
               members={members.data ?? []}
+              templates={templates.data ?? []}
               resolving={resolving}
               onToggleResolve={() => setResolving((value) => !value)}
               onResolve={(spec) => resolveMutation.mutate(spec)}
@@ -332,6 +343,7 @@ interface DetailProps {
   item: VagueItemDto;
   canResolve: boolean;
   members: { userId: string; displayName: string }[];
+  templates: EffectiveQuestionTemplate[];
   resolving: boolean;
   resolvePending: boolean;
   confirmPending: boolean;
@@ -358,6 +370,29 @@ function VagueItemDetail(props: DetailProps) {
   // 放在子组件 + 用 key 绑定 item.id，切换条目时组件重建，表单自然清空。
   const [askForm] = Form.useForm<{ question: string; assigneeId?: string }>();
   const [answerForm] = Form.useForm<{ answerText: string }>();
+
+  // 选中追问对象后，话术里的 {称呼} 才能替换成对方的名字
+  const watchAssigneeId = Form.useWatch('assigneeId', askForm);
+  const assigneeName =
+    props.members.find((member) => member.userId === watchAssigneeId)?.displayName ??
+    props.members.find((member) => member.userId === props.item.assigneeId)?.displayName ??
+    null;
+
+  const usableTemplates = props.templates.filter(
+    (template) =>
+      template.effectiveContent !== null &&
+      (template.category === null || template.category === props.item.category),
+  );
+
+  const applyTemplate = (template: EffectiveQuestionTemplate) => {
+    askForm.setFieldValue(
+      'question',
+      renderQuestionText(template.effectiveContent ?? '', {
+        rawPhrase: props.item.rawPhrase,
+        displayName: assigneeName,
+      }),
+    );
+  };
 
   return (
     <div className="froa-stack">
@@ -410,6 +445,22 @@ function VagueItemDetail(props: DetailProps) {
 
       {!terminal && (
         <Form form={askForm} layout="vertical" onFinish={props.onAsk}>
+          {usableTemplates.length > 0 && (
+            <Form.Item label="家族追问话术（点一下直接套用；可在「追问话术」页换成自己的说法或临时停用）">
+              <Space size={[6, 6]} wrap>
+                {usableTemplates.map((template) => (
+                  <Tag.CheckableTag
+                    key={template.templateId}
+                    checked={false}
+                    onChange={() => applyTemplate(template)}
+                    className="froa-template-chip"
+                  >
+                    {template.title}
+                  </Tag.CheckableTag>
+                ))}
+              </Space>
+            </Form.Item>
+          )}
           <Form.Item
             label={item.question ? '换个问法再问一次' : '发出追问'}
             name="question"

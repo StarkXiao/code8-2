@@ -472,3 +472,24 @@ a {
 body.has-player .froa-main {
   padding-bottom: 6rem;
 }
+
+/* 追问话术模板：追问台里的可点选小标签 */
+.froa-template-chip {
+  padding: 0.15rem 0.6rem !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--froa-border);
+  background: var(--froa-surface);
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.froa-template-chip:hover {
+  border-color: var(--froa-primary);
+  color: var(--froa-primary);
+}
+
+/* 家族整体停用的话术：管理页里整行变淡 */
+.froa-template-row-off > td {
+  opacity: 0.55;
+}

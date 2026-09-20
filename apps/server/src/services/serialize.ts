@@ -6,6 +6,8 @@ import type {
   IngredientDto,
   KitchenReferenceDto,
   NotificationDto,
+  QuestionTemplateDto,
+  QuestionTemplateMemberSettingDto,
   RecipeDto,
   RecipeVersionDto,
   ResolvedSpec,
@@ -16,12 +18,14 @@ import type {
   WorkspaceDto,
   WorkspaceMemberDto,
 } from '@froa/shared';
+import { isVagueCategory } from '@froa/shared';
 import type {
   AudioKind,
   CommentTargetType,
   Confidence,
   HeatLevel,
   NotificationType,
+  QuestionTemplateSettingMode,
   RecipeStatus,
   TranscriptStatus,
   VagueCategory,
@@ -408,6 +412,56 @@ export function toReferenceDto(reference: {
     createdAt: reference.createdAt.toISOString(),
   };
 }
+
+export function toQuestionTemplateDto(template: {
+  id: string;
+  workspaceId: string;
+  category: string | null;
+  title: string;
+  content: string;
+  sortOrder: number;
+  enabled: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): QuestionTemplateDto {
+  return {
+    id: template.id,
+    workspaceId: template.workspaceId,
+    category: isVagueCategory(template.category) ? template.category : null,
+    title: template.title,
+    content: template.content,
+    sortOrder: template.sortOrder,
+    enabled: template.enabled,
+    createdBy: template.createdBy,
+    createdAt: template.createdAt.toISOString(),
+    updatedAt: template.updatedAt.toISOString(),
+  };
+}
+
+export function toTemplateSettingDto(setting: {
+  id: string;
+  templateId: string;
+  userId: string;
+  mode: string;
+  contentOverride: string | null;
+  reason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): QuestionTemplateMemberSettingDto {
+  return {
+    id: setting.id,
+    templateId: setting.templateId,
+    userId: setting.userId,
+    mode: setting.mode as QuestionTemplateSettingMode,
+    contentOverride: setting.contentOverride,
+    reason: setting.reason,
+    createdAt: setting.createdAt.toISOString(),
+    updatedAt: setting.updatedAt.toISOString(),
+  };
+}
+
+// QuestionTemplateDto.category 的分类守卫直接复用 shared 的 isVagueCategory。
 
 export function toVersionDto(
   version: {

@@ -11,6 +11,7 @@ import type {
   CreateStepInput,
   CreateVagueItemInput,
   CreateVerificationInput,
+  EffectiveQuestionTemplate,
   IngredientDto,
   KitchenReferenceDto,
   NotificationDto,
@@ -262,4 +263,66 @@ export const notificationApi = {
     unwrap<NotificationDto[]>(api.get('/notifications', { params: { unread: params?.unread } })),
   markRead: (input: { ids?: string[]; all?: boolean }) =>
     unwrap<{ updated: number }>(api.post('/notifications/read', input)),
+};
+
+/* ---------------- 追问话术家族模板 ---------------- */
+
+export const questionTemplateApi = {
+  /** 管理页：全部家族模板 + 本人的继承/覆盖/停用状态 */
+  list: (workspaceId: string) =>
+    unwrap<EffectiveQuestionTemplate[]>(api.get(`/workspaces/${workspaceId}/question-templates`)),
+  /** 追问台：本人当前真正可用的话术，可按条目分类过滤（通用话术始终返回） */
+  usable: (workspaceId: string, category?: VagueCategory) =>
+    unwrap<EffectiveQuestionTemplate[]>(
+      api.get(`/workspaces/${workspaceId}/question-templates/usable`, {
+        params: category ? { category } : undefined,
+      }),
+    ),
+  create: (
+    workspaceId: string,
+    input: {
+      category?: VagueCategory | null;
+      title: string;
+      content: string;
+      sortOrder?: number;
+      enabled?: boolean;
+    },
+  ) => unwrap(api.post(`/workspaces/${workspaceId}/question-templates`, input)),
+  update: (
+    workspaceId: string,
+    templateId: string,
+    input: {
+      expectedUpdatedAt?: string;
+      category?: VagueCategory | null;
+      title?: string;
+      content?: string;
+      sortOrder?: number;
+      enabled?: boolean;
+    },
+  ) => unwrap(api.patch(`/workspaces/${workspaceId}/question-templates/${templateId}`, input)),
+  remove: (workspaceId: string, templateId: string) =>
+    unwrap<{ removed: string }>(
+      api.delete(`/workspaces/${workspaceId}/question-templates/${templateId}`),
+    ),
+  /** 个人覆盖：用自己的话术替换家族话术（只影响自己） */
+  override: (workspaceId: string, templateId: string, contentOverride: string) =>
+    unwrap(
+      api.put(`/workspaces/${workspaceId}/question-templates/${templateId}/setting`, {
+        mode: 'override',
+        contentOverride,
+      }),
+    ),
+  /** 临时停用：这条话术暂时不对自己生效 */
+  disable: (workspaceId: string, templateId: string, reason?: string) =>
+    unwrap(
+      api.put(`/workspaces/${workspaceId}/question-templates/${templateId}/setting`, {
+        mode: 'disabled',
+        reason: reason ?? null,
+      }),
+    ),
+  /** 删掉个人设置：恢复继承家族模板 */
+  resetSetting: (workspaceId: string, templateId: string) =>
+    unwrap<{ reset: string }>(
+      api.delete(`/workspaces/${workspaceId}/question-templates/${templateId}/setting`),
+    ),
 };

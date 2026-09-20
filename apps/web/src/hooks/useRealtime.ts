@@ -41,6 +41,10 @@ export function useRealtime(): void {
     });
     socket.on('audio:created', () => invalidate([['audio']]));
     socket.on('notification:new', () => invalidate([['notifications']]));
+    // 家族话术被整理者增删改后，所有开着追问台 / 话术页的成员即时刷新
+    socket.on('question_template:changed', () =>
+      invalidate([['question-templates'], ['question-templates-usable']]),
+    );
 
     return () => {
       socket.close();

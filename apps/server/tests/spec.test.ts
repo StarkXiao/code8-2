@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatSpecSummary,
+  hasUnfilledPlaceholder,
   matchVaguePhrases,
   renderQuestionTemplate,
+  renderQuestionText,
   validateResolvedSpec,
   type ResolvedSpec,
 } from '@froa/shared';
@@ -106,5 +108,32 @@ describe('规格摘要', () => {
     expect(formatSpecSummary(spec)).toContain('4g');
     expect(formatSpecSummary(spec)).toContain('白瓷勺半勺');
     expect(formatSpecSummary(null)).toBe('未整理');
+  });
+});
+
+describe('追问话术渲染', () => {
+  const template = '{称呼}，您说"{原话}"，大概是几克呀？';
+
+  it('同时替换原话与称呼', () => {
+    const text = renderQuestionText(template, { rawPhrase: '放一点糖', displayName: '外婆' });
+    expect(text).toBe('外婆，您说"放一点糖"，大概是几克呀？');
+    expect(hasUnfilledPlaceholder(text)).toBe(false);
+  });
+
+  it('没有称呼时清掉占位符与多余标点，句子不能以逗号开头', () => {
+    const text = renderQuestionText(template, { rawPhrase: '放一点糖' });
+    expect(text).toBe('您说"放一点糖"，大概是几克呀？');
+    expect(text.startsWith('，')).toBe(false);
+    expect(hasUnfilledPlaceholder(text)).toBe(false);
+  });
+
+  it('没有原话时保留占位符，提示使用者这句话会被替换', () => {
+    const text = renderQuestionText(template, { displayName: '外婆' });
+    expect(text).toContain('{原话}');
+    expect(hasUnfilledPlaceholder(text)).toBe(true);
+  });
+
+  it('兼容旧的单占位符渲染器', () => {
+    expect(renderQuestionTemplate('您说"{原话}"？', '少许')).toContain('少许');
   });
 });

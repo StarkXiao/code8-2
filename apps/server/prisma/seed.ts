@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
+import { DEFAULT_QUESTION_TEMPLATES } from '@froa/shared';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..', '..');
@@ -107,6 +108,20 @@ async function main() {
         createdBy: organizer.id,
       },
     ],
+  });
+
+  // 家族追问话术模板：新成员加入时自动继承的那套"该怎么开口问"
+  await prisma.questionTemplate.createMany({
+    data: DEFAULT_QUESTION_TEMPLATES.map((seed, index) => ({
+      id: `seed-template-${index + 1}`,
+      workspaceId: workspace.id,
+      category: seed.category,
+      title: seed.title,
+      content: seed.content,
+      sortOrder: index,
+      enabled: true,
+      createdBy: organizer.id,
+    })),
   });
 
   console.log('✔ 基线数据写入完成');

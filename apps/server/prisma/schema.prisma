@@ -43,6 +43,8 @@ model User {
   notifications      Notification[]
   activities         ActivityLog[]
   referencesCreated  KitchenReference[]
+  questionTemplatesCreated QuestionTemplate[]       @relation("QuestionTemplateCreatedBy")
+  questionTemplateSettings QuestionTemplateMemberSetting[] @relation("QuestionTemplateMemberSettingUser")
 }
 
 model Workspace {
@@ -59,6 +61,7 @@ model Workspace {
   audio      AudioAttachment[]
   activities ActivityLog[]
   references KitchenReference[]
+  questionTemplates QuestionTemplate[]
 }
 
 model WorkspaceMember {
@@ -91,6 +94,55 @@ model KitchenReference {
   creator   User      @relation(fields: [createdBy], references: [id])
 
   @@unique([workspaceId, label])
+}
+
+/// 追问话术家族模板：整个家庭空间共用的一套"追问该怎么开口"。
+/// 新成员加入时自动套用全部 enabled 模板；成员个人的覆盖/停用记录在
+/// QuestionTemplateMemberSetting 里，模板本身永远是家族级唯一真相。
+model QuestionTemplate {
+  id          String   @id
+  workspaceId String
+  /// null = 通用兜底；否则只在对应分类的待澄清条目下出现
+  category    String?
+  /// 话术标题，便于列表辨认，例如"问用量：参照物换算法"
+  title       String
+  /// 话术正文，支持占位符 {原话} / {称呼}
+  content     String
+  /// 同一分类内的展示顺序
+  sortOrder   Int      @default(0)
+  /// false = 家族级停用：新成员不会套用，所有成员都不再看到（个人停用仍保留在 setting 表）
+  enabled     Boolean  @default(true)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User      @relation("QuestionTemplateCreatedBy", fields: [createdBy], references: [id])
+  memberSettings QuestionTemplateMemberSetting[]
+
+  @@index([workspaceId, enabled])
+  @@index([workspaceId, category])
+}
+
+/// 成员对某条家族模板的个人设置：用自己的话术覆盖，或临时停用。
+/// 没有记录 = 完全继承家族模板（新人加入时就是"零记录 = 全自动套用"）。
+model QuestionTemplateMemberSetting {
+  id          String   @id
+  templateId  String
+  userId      String
+  /// override：用 contentOverride 替换家族话术；disabled：这条暂时不对我生效
+  mode        String
+  contentOverride String?
+  /// 停用时可以写一句原因，方便日后想起来为什么关掉
+  reason      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  template QuestionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  user     User             @relation("QuestionTemplateMemberSettingUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, userId])
+  @@index([userId])
 }
 
 // ------------------------------------------------------------------

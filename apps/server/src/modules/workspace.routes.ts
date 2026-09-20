@@ -14,6 +14,7 @@ import { requireAuth } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { assertWorkspaceRole, getMembership } from '../services/access';
 import { logActivity } from '../services/activity';
+import { applyTemplatesForNewMember, provisionDefaultQuestionTemplates } from '../services/questionTemplate';
 import { toActivityDto, toMemberDto, toReferenceDto, toWorkspaceDto } from '../services/serialize';
 
 export const workspaceRouter: Router = Router();
@@ -50,6 +51,9 @@ workspaceRouter.post(
       return ws;
     });
 
+    // 家族话术模板随空间一起落地：新空间开箱就有一套"该怎么追问"的话术
+    await provisionDefaultQuestionTemplates(workspace.id, userId);
+
     created(res, toWorkspaceDto(workspace, 'owner'));
   }),
 );
@@ -79,6 +83,11 @@ workspaceRouter.post(
     await prisma.workspaceMember.create({
       data: { id: newId(), workspaceId: workspace.id, userId, role: 'contributor' },
     });
+
+    // 新人加入自动套用：零个人设置 = 完整继承整套家族话术。
+    // 对功能上线前的老空间，这一步也会把默认话术补建出来。
+    await applyTemplatesForNewMember(workspace.id, workspace.ownerId, userId);
+
     await logActivity({
       workspaceId: workspace.id,
       actorId: userId,

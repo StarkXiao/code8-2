@@ -263,6 +263,7 @@ function pageRoutes(data: Seeded): { path: string; expect: RegExp }[] {
       path: `${recipe}/versions/${data.publishedVersionId}/diff/${data.draftVersionId}`,
       expect: /版本差异/,
     },
+    { path: `${base}/question-templates`, expect: /追问话术/ },
     { path: `/join/${data.inviteCode}`, expect: /全页面巡检厨房/ },
   ];
 }

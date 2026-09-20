@@ -111,8 +111,8 @@ origin/
 │  ├─ prisma/schema.prisma   数据模型（唯一真相）
 │  ├─ prisma/migrations/     迁移 SQL（由 migrate diff 从 schema 生成）
 │  ├─ scripts/migrate.mjs    迁移执行器（node:sqlite，无原生依赖）
-│  ├─ src/modules/           auth / workspace / recipe / version / audio / vagueItem / ...
-│  └─ tests/                 spec 单测 + closed-loop 集成测试
+│  ├─ src/modules/           auth / workspace / recipe / version / audio / vagueItem / questionTemplate / ...
+│  └─ tests/                 spec 单测 + closed-loop / questionTemplate / regression 集成测试
 ├─ apps/web/                 前端：React 18 + Vite + TanStack Query + antd
 │  ├─ src/components/        Waveform / GlobalPlayer / AudioRecorder / SpecEditor
 │  ├─ src/features/          录音工作台 / 追问台 / 草稿编辑器 / 版本差异 / 复做验证
@@ -139,6 +139,8 @@ origin/
 **转写是加速器，不是必需品。** 默认 `ASR_PROVIDER=manual`：不调用任何外部服务，转写由人工录入，全流程照样跑通。想省事可以切 `whisper-local`（本机装 whisper）或 `openai`（需要 API Key）。
 
 **参照物登记。** 先把"外婆家那只白瓷勺 = 一平勺 8g"量化一次存进空间，之后所有"半勺""一勺"都能换算成克。这是把模糊用量变成数值最有效的手段。
+
+**追问话术是家族模板，新人自动继承。** 每个空间自带一套追问话术（"用量换成克数怎么问""火候看什么信号"），新成员加入时零配置直接生效。每个成员可以把任意一条**换成自己的说法**（只影响自己）或**临时停用**（比如外婆不喜欢太正式的问法），删掉个人设置即恢复继承；整理者还能对整条做家族级停用。管理入口在空间的「追问话术」页，追问台里点一下话术标签就会把原话、称呼填进追问框。
 
 **并发编辑不会互相覆盖。** 步骤、用量、待澄清条目、版本都带 `updatedAt`。前端提交时回传它读到的时间戳；如果这期间别人改过，服务端返回 `409 EDIT_CONFLICT` 并附上最新内容，而不是静默覆盖。不传该字段时退化为"最后写入者胜"，方便脚本与旧客户端接入。
 
@@ -172,13 +174,16 @@ origin/
 **接口层闭环**（`apps/server/tests/closed-loop.test.ts`，19 个断言组）覆盖：
 建空间 → 邀人加入 → 建食谱（自动建草稿）→ 上传语音 → 框选片段 → 生成待澄清条目 → 规则识别 → 追问 → 语音回答 → 规格校验（缺证据/缺单位被拒）→ 权限边界 → 发布（缺变更说明被拒）→ 已发布版本不可改 → 复做失败自动打回 → 重新整理 → 草稿被"暂定"闸门拦下 → 复核确认 → 再发布 → 复做成功 → 终态 → 导出 Markdown → 越权访问被拒 → 音频软删除仍保留证据。
 
+**追问话术家族模板**（`apps/server/tests/questionTemplate.test.ts`，9 个断言组）覆盖：
+建空间自动生成家族话术、新人加入自动继承（与老成员可见集合一致）、空间外成员 403、贡献者不能改家族模板但能改个人设置、个人覆盖只影响本人、个人停用只影响本人且带停用原因、删除个人设置恢复继承、家族级停用对全员生效再启用恢复、以及编辑同一条话术的乐观锁 409。
+
 **回归测试**（`apps/server/tests/regression.test.ts`，30 个断言组）针对每一个修过的缺陷：
 跨家庭音频隔离、跨空间写入全面拦截（20+ 个按 id 的越权尝试）、软删除音频仍可回放、版本差异能反映结论变化、`includeDeleted` 布尔解析、运维端点鉴权、乐观锁 409（含"冲突时不覆盖别人改动"）、食谱不可搬迁、导出链接带令牌、登录限流、跨食谱引用校验、空间外指派与 @ 被拒、以及 Prisma 错误码映射（改不存在的成员返回 404 而不是 500）。
 
 **UI 层闭环**（`apps/web/e2e/closed-loop.spec.ts`）：在真实 Chrome 里从注册走到发布，包含在波形上拖拽框选片段，最后验证导出真的能下载。
 
 ```bash
-npm run test        # 后端 60 个测试
+npm run test        # 后端 73 个测试
 npm run test:e2e    # 浏览器端 4 条用例（默认用系统 Chrome）
 ```
 

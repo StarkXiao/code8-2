@@ -9,6 +9,7 @@ import {
   VERIFICATION_RESULTS,
   WORKSPACE_ROLES,
 } from './enums';
+import { QUESTION_TEMPLATE_SETTING_MODES } from './questionTemplates';
 
 /* ------------------------------------------------------------------ */
 /* 通用                                                                */
@@ -97,6 +98,50 @@ export const booleanQuerySchema = z
     if (value === undefined) return undefined;
     if (typeof value === 'boolean') return value;
     return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
+  });
+
+/* ------------------------------------------------------------------ */
+/* 追问话术家族模板                                                    */
+/* ------------------------------------------------------------------ */
+
+const templateCategorySchema = z.enum(VAGUE_CATEGORIES).nullish();
+const templateContentSchema = z
+  .string()
+  .trim()
+  .min(2, '请填写话术内容')
+  .max(1000, '话术不要超过 1000 字');
+
+export const createQuestionTemplateSchema = z.object({
+  category: templateCategorySchema,
+  title: z.string().trim().min(1, '请填写话术标题').max(64),
+  content: templateContentSchema,
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+  enabled: z.boolean().optional(),
+});
+
+export const updateQuestionTemplateSchema = z.object({
+  expectedUpdatedAt: expectedUpdatedAtSchema,
+  category: templateCategorySchema,
+  title: z.string().trim().min(1).max(64).optional(),
+  content: templateContentSchema.optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+  enabled: z.boolean().optional(),
+});
+
+/**
+ * 个人覆盖 / 停用。
+ * - override 必须带上自己的 contentOverride；
+ * - disabled 可以写一句停用原因（可选）。
+ */
+export const upsertTemplateSettingSchema = z
+  .object({
+    mode: z.enum(QUESTION_TEMPLATE_SETTING_MODES),
+    contentOverride: templateContentSchema.nullish(),
+    reason: z.string().trim().max(500).nullish(),
+  })
+  .refine((value) => value.mode !== 'override' || !!value.contentOverride, {
+    message: '覆盖家族话术时必须填写你自己的话术内容',
+    path: ['contentOverride'],
   });
 
 export const forkVersionSchema = z.object({
